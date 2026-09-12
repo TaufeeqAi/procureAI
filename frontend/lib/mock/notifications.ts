@@ -1,0 +1,58 @@
+import type { NotificationEvent } from "@/types/common";
+
+export const notifications: NotificationEvent[] = [
+  {
+    id: "notif-1",
+    severity: "ACTION_REQUIRED",
+    title: "Purchase approval required",
+    message: "PR-2026-00983 has a ready recommendation awaiting your decision.",
+    entityHref: "/requisitions/PR-2026-00983/decision",
+    createdAt: "2026-09-04T10:21:00+05:30",
+    read: false,
+  },
+  {
+    id: "notif-2",
+    severity: "WARNING",
+    title: "Dispatch confirmation overdue",
+    message: "PO-2026-001274 has not received a dispatch update in 6 days.",
+    entityHref: "/deliveries/PO-2026-001274",
+    createdAt: "2026-09-04T08:00:00+05:30",
+    read: false,
+  },
+  {
+    id: "notif-3",
+    severity: "RISK",
+    title: "Delivery risk detected",
+    message: "PR-2026-00976 supplier response indicates a delivery risk.",
+    entityHref: "/requisitions/PR-2026-00976",
+    createdAt: "2026-09-04T09:40:00+05:30",
+    read: false,
+  },
+  {
+    id: "notif-4",
+    severity: "FINANCIAL",
+    title: "Quote above historical benchmark",
+    message: "PR-2026-00983: current quote is 12.4% above the historical benchmark on two of three lines.",
+    entityHref: "/requisitions/PR-2026-00983/quotes",
+    createdAt: "2026-09-04T09:35:00+05:30",
+    read: true,
+  },
+  {
+    id: "notif-5",
+    severity: "INFORMATION",
+    title: "Supplier response received",
+    message: "ABC Precision responded to RFQ-2026-00481.",
+    entityHref: "/requisitions/PR-2026-00983/communication",
+    createdAt: "2026-09-04T09:32:00+05:30",
+    read: true,
+  },
+  {
+    id: "notif-6",
+    severity: "SYSTEM",
+    title: "RFQ reminder sent",
+    message: "A reminder was sent to 2 suppliers for PR-2026-00968.",
+    entityHref: "/requisitions/PR-2026-00968/sourcing",
+    createdAt: "2026-09-04T09:58:00+05:30",
+    read: true,
+  },
+];

@@ -1,0 +1,125 @@
+@import "tailwindcss";
+
+/*
+ * Font variables come from next/font-compatible objects set on <html> in
+ * app/layout.tsx (the `geist` npm package — self-hosted, no build-time
+ * network fetch, which is what broke Phase 0's Google Fonts setup).
+ * `@theme inline` is the documented Tailwind v4 pattern for theme values
+ * that reference *other* runtime CSS variables rather than static literals.
+ */
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/*
+ * Design tokens — dark, enterprise-console theme (Phase 1 supersedes
+ * Phase 0's light theme; see docs/architecture/design-system.md for the
+ * reasoning and for the one deliberate deviation from the reference
+ * screenshot: `ai` and `success` are adjacent but distinct hues, never
+ * the same token, because conflating "AI said so" with "this is true"
+ * is exactly the trust failure Section 16 of the product spec exists to
+ * prevent).
+ *
+ * Tailwind v4 generates utilities directly from these custom properties
+ * (`--color-brand` → `bg-brand`, `text-brand`, `border-brand`, …) — no
+ * separate JS theme config is needed or present in this project.
+ */
+@theme {
+  --color-canvas: #0a0c11;
+  --color-sidebar: #090b0f;
+  --color-surface: #12151c;
+  --color-surface-raised: #171b24;
+
+  --color-border: #1e222b;
+  --color-border-strong: #2b3038;
+
+  --color-ink-primary: #f2f4f7;
+  --color-ink-secondary: #99a1ae;
+  --color-ink-tertiary: #676f7b;
+  --color-ink-inverse: #0d0f13;
+
+  --color-brand: #e3a53d;
+  --color-brand-strong: #f0b658;
+  --color-brand-subtle: #2a2013;
+
+  --color-ai: #35d6c0;
+  --color-ai-strong: #5fe4d3;
+  --color-ai-subtle: #102624;
+
+  --color-success: #34c481;
+  --color-success-subtle: #112420;
+
+  --color-warning: #e3a53d;
+  --color-warning-subtle: #2a2013;
+
+  --color-danger: #e2637e;
+  --color-danger-subtle: #2a161c;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+
+  --shadow-overlay: 0 20px 48px -16px rgba(0, 0, 0, 0.6);
+}
+
+* {
+  border-color: var(--color-border);
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  background-color: var(--color-canvas);
+  color: var(--color-ink-primary);
+  font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Numeric figures (prices, quantities, scores) use tabular numerals so
+   columns of numbers align in comparison tables. */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Entity codes (PR-2026-00983, PO-2026-001288) and timestamps use a
+   monospace treatment — a real convention on Elecon's own procurement
+   documents, not decoration. */
+.entity-code {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  letter-spacing: -0.01em;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+.thin-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border-strong) transparent;
+}
+.thin-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background-color: var(--color-border-strong);
+  border-radius: 8px;
+}
