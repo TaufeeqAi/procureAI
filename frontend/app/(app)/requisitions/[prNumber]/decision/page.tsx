@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
 import { DecisionWorkspace } from "@/components/procurement/DecisionWorkspace";
 import { EmptyState } from "@/components/shared/states";
+import { RunProcurementAIButton } from "@/components/ai/RunProcurementAIButton";
 import {
   getRequisitionByNumber,
   getRecommendationFor,
@@ -21,7 +22,13 @@ export async function generateMetadata({ params }: { params: Promise<{ prNumber:
  * separate routes — see docs/architecture/information-architecture.md —
  * so the buyer never loses the decision context while inspecting them.
  */
-export default async function DecisionPage({ params, searchParams }: { params: Promise<{ prNumber: string }>; searchParams?: Promise<{ whatIfDate?: string }> }) {
+export default async function DecisionPage({ 
+  params, 
+  searchParams 
+}: { 
+  params: Promise<{ prNumber: string }>; 
+  searchParams?: Promise<{ whatIfDate?: string }> 
+}) {
   const { prNumber } = await params;
   const query = searchParams ? await searchParams : {};
   const requisition = await getRequisitionByNumber(prNumber);
@@ -29,13 +36,18 @@ export default async function DecisionPage({ params, searchParams }: { params: P
 
   const recommendation = await getRecommendationFor(prNumber);
   const whatIf = await getWhatIfFor(prNumber, { requiredDate: query.whatIfDate });
-  const negotiationDraft = await getNegotiationDraftFor(prNumber); // <-- Added 'await'
+  const negotiationDraft = await getNegotiationDraftFor(prNumber);
 
   return (
     <div>
       <PageHeader
-        breadcrumbs={[{ label: "Requisitions", href: routes.requisitions() }, { label: prNumber, href: routes.requisition(prNumber) }, { label: "Decision" }]}
+        breadcrumbs={[
+          { label: "Requisitions", href: routes.requisitions() }, 
+          { label: prNumber, href: routes.requisition(prNumber) }, 
+          { label: "Decision" }
+        ]}
         title="Procurement Decision"
+        actions={<RunProcurementAIButton prNumber={prNumber} />}
       />
       {!recommendation || !whatIf || !negotiationDraft ? (
         <EmptyState
@@ -52,6 +64,6 @@ export default async function DecisionPage({ params, searchParams }: { params: P
           sourcingHref={routes.requisitionSourcing(prNumber)}
         />
       )}
-    </div>
+        </div>
   );
 }

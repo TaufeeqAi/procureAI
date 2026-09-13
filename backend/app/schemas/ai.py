@@ -1,25 +1,44 @@
 from datetime import datetime
 from typing import Literal
 
-from app.schemas.common import CamelModel, ConfidenceBand, EvidenceReference, Money, RiskLevel
+from app.schemas.common import (
+    CamelModel,
+    ConfidenceBand,
+    EvidenceReference,
+    Money,
+    RiskLevel,
+)
+
 
 AgentKind = Literal[
-    "REQUIREMENT_AGENT", "SUPPLIER_INTELLIGENCE_AGENT", "COMMUNICATION_AGENT",
-    "QUOTE_INTELLIGENCE_AGENT", "PROCUREMENT_ANALYST", "RISK_AGENT", "NEGOTIATION_AGENT",
+    "REQUIREMENT_AGENT",
+    "SUPPLIER_INTELLIGENCE_AGENT",
+    "COMMUNICATION_AGENT",
+    "QUOTE_INTELLIGENCE_AGENT",
+    "PROCUREMENT_ANALYST",
+    "RISK_AGENT",
+    "NEGOTIATION_AGENT",
 ]
+
 AgentRunStatus = Literal[
-    "QUEUED", "RUNNING", "ANALYZING", "WAITING_FOR_EXTERNAL_EVENT",
-    "WAITING_FOR_REVIEW", "COMPLETED", "FAILED",
+    "QUEUED",
+    "RUNNING",
+    "ANALYZING",
+    "WAITING_FOR_EXTERNAL_EVENT",
+    "WAITING_FOR_REVIEW",
+    "COMPLETED",
+    "FAILED",
 ]
-RecommendationState = Literal["READY", "REVIEW_REQUIRED", "INSUFFICIENT_DATA"]
+
+RecommendationState = Literal[
+    "READY",
+    "REVIEW_REQUIRED",
+    "INSUFFICIENT_DATA",
+]
 
 
 class AgentRun(CamelModel):
-    """Mirrors frontend/types/ai.ts `AgentRun` — the same shape
-    `lib/mock/agent-pipeline.ts`'s `runMockAgentPipeline` produces on the
-    frontend today. Phase 5 is what makes this schema describe a *real*
-    LangGraph run instead of a seeded row; the shape itself doesn't
-    change, per docs/architecture/ai-interaction-layer.md."""
+    """Public representation of an agent execution."""
 
     id: str
     agent: AgentKind
@@ -66,16 +85,16 @@ class RecommendationAlternative(CamelModel):
 
 
 class ProcurementRecommendation(CamelModel):
-    """
-    The central AI output of the product — mirrors
-    frontend/types/ai.ts `ProcurementRecommendation` field-for-field.
-    `confidence` and `overall_score` are always the deterministic
-    truth-engine's numbers (Phase 4); `reasons` and `trade_off` are the
-    AI's explanation of those numbers, never a replacement for them. See
-    docs/architecture/decisions/supplier-score.md and
-    confidence-thresholds.md — the latter is still explicitly open, and
-    this schema does not resolve it; it just carries whatever value the
-    service layer computes today.
+    """Canonical Phase 3/4/5/6 recommendation contract.
+
+    Important semantic boundary:
+
+    - confidence currently carries the normalized deterministic
+      procurement score for backward compatibility.
+    - confidence is NOT Groq token probability.
+    - overall_score is deterministic Phase 4 truth.
+    - dimensions are deterministic procurement dimensions.
+    - reasons and trade_off may be AI interpretations.
     """
 
     id: str
@@ -139,7 +158,12 @@ class NegotiationDraft(CamelModel):
     supplier_id: str
     target_range: NegotiationTargetRange
     draft_message: str
-    status: Literal["DRAFT", "SENT_FOR_APPROVAL", "APPROVED", "SENT"]
+    status: Literal[
+        "DRAFT",
+        "SENT_FOR_APPROVAL",
+        "APPROVED",
+        "SENT",
+    ]
     generated_at: datetime
 
 

@@ -4,13 +4,54 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict
 from pydantic.alias_generators import to_camel
 
-CurrencyCode = Literal["INR", "USD", "EUR"]
-RiskLevel = Literal["LOW", "MEDIUM", "HIGH"]
-ConfidenceBand = Literal["HIGH", "MEDIUM", "LOW", "INSUFFICIENT_DATA"]
-Provenance = Literal["FACT", "CALCULATED", "AI_INTERPRETATION", "HUMAN_DECISION"]
-ActorRole = Literal["BUYER", "PURCHASE_MANAGER", "SUPPLIER", "IT_ADMIN", "AUDITOR"]
-ActorType = Literal["HUMAN", "AI_AGENT"]
-NotificationSeverity = Literal["ACTION_REQUIRED", "WARNING", "RISK", "FINANCIAL", "SYSTEM", "INFORMATION"]
+
+CurrencyCode = Literal[
+    "INR",
+    "USD",
+    "EUR",
+]
+
+RiskLevel = Literal[
+    "LOW",
+    "MEDIUM",
+    "HIGH",
+]
+
+ConfidenceBand = Literal[
+    "HIGH",
+    "MEDIUM",
+    "LOW",
+    "INSUFFICIENT_DATA",
+]
+
+Provenance = Literal[
+    "FACT",
+    "CALCULATED",
+    "AI_INTERPRETATION",
+    "HUMAN_DECISION",
+]
+
+ActorRole = Literal[
+    "BUYER",
+    "PURCHASE_MANAGER",
+    "SUPPLIER",
+    "IT_ADMIN",
+    "AUDITOR",
+]
+
+ActorType = Literal[
+    "HUMAN",
+    "AI_AGENT",
+]
+
+NotificationSeverity = Literal[
+    "ACTION_REQUIRED",
+    "WARNING",
+    "RISK",
+    "FINANCIAL",
+    "SYSTEM",
+    "INFORMATION",
+]
 
 
 class CamelModel(BaseModel):
@@ -70,6 +111,28 @@ class AgentActor(CamelModel):
     model_version: str | None = None
 
 
+class EvidenceItem(CamelModel):
+    """Internal authoritative evidence-catalog item.
+
+    This represents an evidence object created by the application
+    before it reaches the AI layer.
+
+    It is deliberately different from EvidenceReference:
+
+    EvidenceItem
+        = authoritative catalog object used by AI validation
+
+    EvidenceReference
+        = public reference returned inside AI-facing API contracts
+    """
+
+    id: str
+    label: str
+    value: str
+    source_type: str
+    source_ref: str
+
+
 class EvidenceReference(CamelModel):
     """Every AI interpretation traces to at least one of these — see
     docs/architecture/design-system.md's Fact/Calculated/AI/Human
@@ -81,6 +144,12 @@ class EvidenceReference(CamelModel):
     label: str
     href: str | None = None
     as_of: datetime
+
+
+class RiskFlag(CamelModel):
+    severity: RiskLevel
+    message: str
+    evidence: list[EvidenceReference] | None = None
 
 
 class AuditEvent(CamelModel):

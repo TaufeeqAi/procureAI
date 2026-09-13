@@ -31,6 +31,37 @@ export type RiskLevel = "LOW" | "MEDIUM" | "HIGH";
 export type ConfidenceBand = "HIGH" | "MEDIUM" | "LOW" | "INSUFFICIENT_DATA";
 
 /**
+ * Phase 5 AI confidence object. Combines a numeric score (0–1) with a
+ * categorical band for UI rendering. This is not a statistical confidence
+ * interval — see docs/architecture/decisions/confidence-thresholds.md.
+ */
+export interface AIConfidence {
+  /** 0–1 deterministic confidence score. */
+  score: number;
+  /** Categorical band for UI rendering. */
+  band: ConfidenceBand;
+}
+
+/**
+ * Phase 5 evidence item. Every AI interpretation must reference at least
+ * one EvidenceItem to ground its claims in authoritative data.
+ */
+export interface EvidenceItem {
+  id: string;
+  label: string;
+  value: string;
+  sourceType: string;
+  sourceRef: string;
+}
+
+/**
+ * Severity level for AI activity entries and notifications. Distinct from
+ * RiskLevel (which is supplier/quote-specific) — this is for general
+ * activity and event severity.
+ */
+export type Severity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+
+/**
  * Distinguishes where a piece of data on screen came from. The UI must
  * render these differently (see components/ai/AIBadge and the Evidence
  * Panel) — an AI interpretation is never shown with the same visual

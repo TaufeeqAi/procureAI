@@ -3,14 +3,26 @@ from typing import Literal
 
 from app.schemas.common import CamelModel, Money, RiskLevel
 
-SupplierApprovalStatus = Literal["APPROVED", "PENDING_APPROVAL", "SUSPENDED"]
-PerformanceTrend = Literal["IMPROVING", "STABLE", "DECLINING"]
+
+SupplierApprovalStatus = Literal[
+    "APPROVED",
+    "PENDING_APPROVAL",
+    "SUSPENDED",
+]
+
+PerformanceTrend = Literal[
+    "IMPROVING",
+    "STABLE",
+    "DECLINING",
+]
 
 
 class SupplierScoreBreakdown(CamelModel):
-    """Always the deterministic truth-engine's output (Phase 4) — never an
-    LLM's — mirrors frontend/types/supplier.ts and
-    docs/architecture/decisions/supplier-score.md exactly."""
+    """Deterministic Phase 4 supplier score.
+
+    This is procurement truth and must never be generated
+    or overridden by an LLM.
+    """
 
     overall: float
     price: float
@@ -65,8 +77,7 @@ class SupplierTransaction(CamelModel):
 
 
 class SupplierDetailData(CamelModel):
-    """Data contract for GET /suppliers/{slug} — matches
-    frontend/types/supplier.ts `SupplierDetailData` field-for-field."""
+    """Data contract for GET /suppliers/{slug}."""
 
     supplier: Supplier
     performance: SupplierPerformanceMetrics

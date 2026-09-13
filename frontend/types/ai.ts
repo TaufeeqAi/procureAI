@@ -1,4 +1,5 @@
-import type { ConfidenceBand, EvidenceReference, ISODateTime, Money, RiskLevel } from "@/types/common";
+import type { AIConfidence, EvidenceItem, RiskLevel, Severity } from "./common";
+import type { SupplierScoreBreakdown } from "./supplier";
 
 /**
  * The six-agent AI workforce. Keep this list in sync with
@@ -32,8 +33,8 @@ export interface AgentRun {
   prId: string;
   summary?: string;
   outputHref?: string;
-  startedAt: ISODateTime;
-  completedAt?: ISODateTime;
+  startedAt: string;
+  completedAt?: string;
 }
 
 export interface ScoreDimension {
@@ -41,12 +42,6 @@ export interface ScoreDimension {
   value: number;
   label: string;
   detail?: string;
-}
-
-export interface RiskFlag {
-  severity: RiskLevel;
-  message: string;
-  evidence?: EvidenceReference[];
 }
 
 export interface PolicyCheck {
@@ -57,60 +52,95 @@ export interface PolicyCheck {
 
 export type RecommendationState = "READY" | "REVIEW_REQUIRED" | "INSUFFICIENT_DATA";
 
-/**
- * The central AI output of the product. Every field here must be
- * traceable to `evidence`, and `confidence` must reflect real sample
- * sizes — see docs/architecture/decisions/confidence-thresholds.md.
- * The frontend's Evidence Panel (components/ai/AIEvidenceDrawer) is the
- * canonical renderer for this contract.
- */
+// --- Phase 5 Updated / New Contracts ---
+
 export interface ProcurementRecommendation {
-  id: string;
-  prId: string;
+  prNumber: string;
   supplierId: string;
-  supplierName: string;
-  /** 0–1 */
-  confidence: number;
-  confidenceBand: ConfidenceBand;
-  recommendationState: RecommendationState;
-  overallScore: number;
-  dimensions: {
-    price: ScoreDimension;
-    quality: ScoreDimension;
-    delivery: ScoreDimension;
-    commercialTerms: ScoreDimension;
-    risk: ScoreDimension;
-  };
+  confidence: AIConfidence;
+  scores: SupplierScoreBreakdown;
   reasons: string[];
   tradeOff?: string;
   risks: RiskFlag[];
-  evidence: EvidenceReference[];
-  policyChecks: PolicyCheck[];
-  alternatives: {
-    supplierId: string;
-    supplierName: string;
-    overallScore: number;
-    noteworthyDifference: string;
-  }[];
-  generatedAt: ISODateTime;
+  evidence: EvidenceItem[];
+  generatedAt: string;
+}
+
+export interface RiskFlag {
+  id: string;
+  severity: RiskLevel;
+  message: string;
+  relatedEntity?: string;
 }
 
 export interface NegotiationTargetRange {
-  low: Money;
-  high: Money;
-  benchmark: Money;
+  low: { currency: string; amount: number };
+  high: { currency: string; amount: number };
+  benchmark: { currency: string; amount: number };
   variancePercent: number;
 }
 
 export interface NegotiationDraft {
-  id: string;
-  prId: string;
+  prNumber: string;
   supplierId: string;
-  targetRange: NegotiationTargetRange;
-  draftMessage: string;
-  status: "DRAFT" | "SENT_FOR_APPROVAL" | "APPROVED" | "SENT";
-  generatedAt: ISODateTime;
+  currentUnitPriceInr: number;
+  benchmarkUnitPriceInr: number;
+  targetUnitPriceInr: number;
+  messageBody: string;
 }
+
+export type WhatIfWeightKey = "price" | "quality" | "delivery" | "commercial" | "risk";
+export interface WhatIfWeights extends Record<WhatIfWeightKey, number> {}
+export interface WhatIfScenarioResult { 
+  supplierId: string; 
+  originalScore: number; 
+  newScore: number; 
+  delta: number; 
+}
+
+export type AIAgentName =
+  | "requirement_agent"
+  | "supplier_agent"
+  | "quote_agent"
+  | "procurement_analyst"
+  | "risk_agent"
+  | "negotiation_agent"
+  | "human_decision"
+  | "graph";
+
+export type AIActivityStatus = "complete" | "in_progress" | "pending" | "failed" | "started";
+
+export interface AIActivityEntry {
+  id: string;
+  prNumber?: string;
+  agent: AIAgentName;
+  label: string;
+  detail: string;
+  status: AIActivityStatus;
+  severity?: Severity;
+  timestamp: string;
+}
+
+export interface ProcurementAIRun {
+  runId: string;
+  threadId: string;
+  prNumber: string;
+  status: "completed" | "failed";
+  graphVersion: string;
+  promptVersion: string;
+  model: string;
+  recommendation: ProcurementRecommendation;
+  activity: Array<{
+    agent: AIAgentName;
+    label: string;
+    status: "started" | "complete" | "failed";
+    detail: string;
+    timestamp: string;
+  }>;
+  errors: Array<Record<string, unknown>>;
+}
+
+// --- Preserved Phase 3/4 Contracts ---
 
 export interface AIAskQuestion {
   id: string;
@@ -122,5 +152,5 @@ export interface AIAskExchange {
   question: string;
   answer: string;
   evidenceHref?: string;
-  answeredAt: ISODateTime;
+  answeredAt: string;
 }

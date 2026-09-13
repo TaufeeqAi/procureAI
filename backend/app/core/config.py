@@ -15,8 +15,10 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    app_name: str = "Elecon Procurement API"
+    app_name: str = "Elecon Procurement AI"
+    api_v1_prefix: str = "/api/v1"
     environment: str = "development"
+    demo_mode: bool = True
     debug: bool = True
 
     # asyncpg is the only async PostgreSQL driver used at runtime (see
@@ -31,8 +33,30 @@ class Settings(BaseSettings):
     # env-var encoding.
     cors_origins_raw: str = "http://localhost:3000"
 
-    api_v1_prefix: str = "/api/v1"
     log_level: str = "INFO"
+
+    # ----------------------------------------------------------------------
+    # Phase 5: AI and LangGraph Configuration
+    # ----------------------------------------------------------------------
+    langsmith_api_key: str | None = None
+    langsmith_tracing: bool = False
+    langgraph_checkpoint_enabled: bool = True
+    langgraph_checkpoint_setup_required: bool = True
+    
+    # Primary LLM (Gemini)
+    gemini_api_key: str | None = None
+    gemini_model: str = "gemini-1.5-pro"
+    
+    # Fallback LLM (Groq)
+    groq_api_key: str | None = None
+    groq_model: str = "qwen/qwen3-32b"
+    groq_temperature: float = 0.0
+    groq_max_tokens: int = 4096
+    groq_timeout_seconds: float = 60.0
+    groq_max_retries: int = 2
+    
+    ai_graph_version: str = "procurement-graph.v1"
+    ai_prompt_version: str = "procurement-prompts.v1"
 
     @property
     def cors_origins(self) -> list[str]:
