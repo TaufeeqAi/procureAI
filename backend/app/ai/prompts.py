@@ -76,3 +76,10 @@ def final_prompt(facts: dict[str, Any]) -> str:
         "Produce a decision-ready explanation for a human procurement professional. Set supplier_id exactly equal to the deterministic Phase 4 recommended_supplier_id. Reasons must be grounded in the provided calculations and evidence. Keep the explanation concise, explicit about trade-offs, and actionable.",
     )
 
+
+def question_prompt(facts: dict[str, Any], question: str) -> str:
+    return _context(
+        "Procurement question answering",
+        {"facts": facts, "question": question},
+        "Answer the buyer's question using only the authoritative facts. Cite only evidence IDs from the supplied catalog. If the evidence is insufficient, say so plainly instead of guessing. Do not invent calculations or supplier facts.",
+    )

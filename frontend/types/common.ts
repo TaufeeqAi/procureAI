@@ -147,4 +147,4 @@ export interface Paginated<T> {
   page: number;
   pageSize: number;
   totalItems: number;
-}
+} 

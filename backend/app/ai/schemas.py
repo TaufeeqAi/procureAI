@@ -4,6 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.common import CamelModel, EvidenceReference
+
 
 class StrictAIModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -64,7 +66,18 @@ class FinalAIAnalysis(StrictAIModel):
     evidence_ids: list[str] = Field(min_length=1, max_length=30)
 
 
-class AIActivityEvent(StrictAIModel):
+# ----------------------------------------------------------------------
+# Phase 6: Question Answering & Streaming Contracts
+# ----------------------------------------------------------------------
+
+class AIQuestionAnswer(StrictAIModel):
+    answer: str = Field(min_length=1, max_length=3000)
+    evidence_ids: list[str] = Field(default_factory=list, max_length=20)
+    uncertainty: str | None = Field(default=None, max_length=600)
+
+
+class AIActivityEvent(CamelModel):
+    id: str
     agent: str
     label: str
     status: Literal["started", "complete", "failed"]
@@ -72,7 +85,13 @@ class AIActivityEvent(StrictAIModel):
     timestamp: str
 
 
-class ProcurementAIRunOut(StrictAIModel):
+class AIRunVersion(CamelModel):
+    graph_version: str
+    prompt_version: str
+    model: str
+
+
+class ProcurementAIRunOut(CamelModel):
     run_id: str
     thread_id: str
     pr_number: str
@@ -84,3 +103,37 @@ class ProcurementAIRunOut(StrictAIModel):
     negotiation: dict | None = None
     activity: list[AIActivityEvent]
     errors: list[dict]
+
+
+class AIStreamEvent(CamelModel):
+    type: Literal[
+        "run.started",
+        "activity",
+        "run.completed",
+        "run.failed",
+        "heartbeat",
+    ]
+    run_id: str
+    pr_number: str
+    thread_id: str
+    sequence: int = Field(ge=0)
+    timestamp: str
+    data: dict
+
+
+class AIQuestionRequest(CamelModel):
+    question: str = Field(min_length=2, max_length=1000)
+    thread_id: str | None = Field(default=None, max_length=200)
+
+
+class AIQuestionResponse(CamelModel):
+    id: str
+    thread_id: str
+    pr_number: str
+    question: str
+    answer: str
+    uncertainty: str | None = None
+    evidence: list[EvidenceReference]
+    graph_version: str
+    prompt_version: str
+    model: str

@@ -21,23 +21,12 @@ from app.schemas.requisition import (
     ProcurementTask,
 )
 
-"""
-Everything here is genuinely derived from seeded rows — sourced counts,
-computed heuristics, template-filled summaries — not a reproduction of the
-specific hand-authored copy the frontend's Phase 1 mock data used (e.g.
-the exact sentence "Current quote 12.4% above historical benchmark on two
-of three lines"). Matching that literal wording would mean hardcoding
-fake "AI-generated" text in a service function, which is worse than
-admitting the two won't read identically until Phase 5's real agents
-generate this text for real. See docs/architecture/backend-contract-
-parity.md for the honest scope of what Phase 3 does and doesn't
-reproduce.
-"""
-
 
 async def get_dashboard_data(db: AsyncSession) -> ProcurementDashboardData:
     requisitions = (await db.execute(select(Requisition))).scalars().all()
-    open_prs = [pr for pr in requisitions if pr.status != "COMPLETED"]
+    
+    # Count all PRs that are not in a final 'COMPLETED' state
+    open_prs = [pr for pr in requisitions if str(pr.status).upper() != "COMPLETED"]
     exceptions_count = len([pr for pr in requisitions if pr.exceptions])
 
     from app.models.ai_recommendation import AIRecommendation
@@ -46,7 +35,7 @@ async def get_dashboard_data(db: AsyncSession) -> ProcurementDashboardData:
     ready_recs = {r.requisition_id: r for r in recommendations if r.recommendation_state == "READY"}
     suppliers_by_id = {s.id: s for s in (await db.execute(select(Supplier))).scalars().all()}
 
-    pending_approval_prs = [pr for pr in requisitions if pr.status in ("ANALYSIS_READY", "AWAITING_APPROVAL")]
+    pending_approval_prs = [pr for pr in requisitions if str(pr.status).upper() in ("ANALYSIS_READY", "AWAITING_APPROVAL")]
 
     summary = ProcurementDashboardSummary(
         open_prs=len(open_prs),
@@ -72,7 +61,8 @@ async def get_dashboard_data(db: AsyncSession) -> ProcurementDashboardData:
 async def _build_decision_queue(db, requisitions, ready_recs, suppliers_by_id) -> list[ProcurementTask]:
     tasks: list[ProcurementTask] = []
     for pr in requisitions:
-        if pr.status in ("COMPLETED", "PO_CREATED", "APPROVED", "RECEIVED", "VALIDATING", "READY_FOR_SOURCING"):
+        status_str = str(pr.status).upper()
+        if status_str in ("COMPLETED", "PO_CREATED", "APPROVED", "RECEIVED", "VALIDATING", "READY_FOR_SOURCING"):
             continue
 
         if pr.id in ready_recs:
@@ -106,13 +96,13 @@ async def _build_decision_queue(db, requisitions, ready_recs, suppliers_by_id) -
                     action_href=f"/requisitions/{pr.pr_number}",
                 )
             )
-        elif pr.status in ("RFQ_IN_PROGRESS", "RESPONSES_RECEIVED"):
+        elif status_str in ("RFQ_IN_PROGRESS", "RESPONSES_RECEIVED"):
             rfq_result = await db.execute(
                 select(RFQ).where(RFQ.requisition_id == pr.id).options(selectinload(RFQ.recipients))
             )
             rfqs = rfq_result.scalars().all()
             recipients = [r for rfq in rfqs for r in rfq.recipients]
-            responded = len([r for r in recipients if r.status == "RESPONDED"])
+            responded = len([r for r in recipients if str(r.status).upper() == "RESPONDED"])
             if recipients:
                 tasks.append(
                     ProcurementTask(
@@ -139,16 +129,28 @@ async def _build_ai_opportunities(db: AsyncSession, suppliers_by_id: dict) -> Pr
 
     negotiation_count = 0
     price_anomalies = 0
+    estimated_savings = 0.0
+    
     for quote in quotes:
         supplier = suppliers_by_id.get(quote.supplier_id)
         benchmark = supplier.average_unit_price_amount if supplier else None
-        if benchmark and quote.unit_price_amount > benchmark * 1.03:
-            negotiation_count += 1
-        if quote.validation_status == "NEEDS_REVIEW":
+        
+        if benchmark and quote.unit_price_amount:
+            if quote.unit_price_amount > benchmark * 1.03:
+                negotiation_count += 1
+            elif quote.unit_price_amount < benchmark:
+                quantity = quote.quantity or 1
+                savings = (benchmark - quote.unit_price_amount) * quantity
+                estimated_savings += savings
+
+        if str(quote.validation_status).upper() == "NEEDS_REVIEW":
             price_anomalies += 1
 
     deliveries = (await db.execute(select(Delivery))).scalars().all()
-    delivery_risks = len([d for d in deliveries if d.risk_level in ("HIGH", "MEDIUM") or d.status == "AT_RISK"])
+    delivery_risks = len([
+        d for d in deliveries 
+        if str(d.risk_level).upper() in ("HIGH", "MEDIUM") or str(d.status).upper() == "AT_RISK"
+    ])
 
     quality_risks = len(
         [
@@ -158,11 +160,16 @@ async def _build_ai_opportunities(db: AsyncSession, suppliers_by_id: dict) -> Pr
         ]
     )
 
+    savings_payload = None
+    if estimated_savings > 0:
+        savings_payload = {"amount": round(estimated_savings, 2), "currency": "INR"}
+
     return ProcurementAiOpportunities(
         negotiation_count=negotiation_count,
         price_anomalies=price_anomalies,
         delivery_risks=delivery_risks,
         quality_risks=quality_risks,
+        estimated_savings=savings_payload,
     )
 
 
@@ -214,12 +221,6 @@ async def _build_recent_activity(db: AsyncSession) -> list[ActivityEvent]:
 def _build_standing_brief(
     summary: ProcurementDashboardSummary, opportunities: ProcurementAiOpportunities
 ) -> AIStandingBrief:
-    """
-    Template-filled from real aggregate numbers — not a language-model
-    output. Labeled honestly as such rather than dressed up to look
-    AI-generated; Phase 5's real Procurement Analyst / Risk agents replace
-    this function's body with an actual synthesized summary.
-    """
     paragraphs = [
         f"{summary.recommendations_ready} procurement decision(s) currently have a ready AI recommendation "
         f"awaiting review.",

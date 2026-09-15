@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     # ----------------------------------------------------------------------
-    # Phase 5: AI and LangGraph Configuration
+    # Phase 5 & 6: AI and LangGraph Configuration
     # ----------------------------------------------------------------------
     langsmith_api_key: str | None = None
     langsmith_tracing: bool = False
@@ -57,6 +57,9 @@ class Settings(BaseSettings):
     
     ai_graph_version: str = "procurement-graph.v1"
     ai_prompt_version: str = "procurement-prompts.v1"
+    
+    # Phase 6: Real AI UX Streaming Configuration
+    ai_ux_stream_heartbeat_seconds: float = 15.0
 
     @property
     def cors_origins(self) -> list[str]:

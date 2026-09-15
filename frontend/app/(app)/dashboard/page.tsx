@@ -10,7 +10,16 @@ export const metadata = { title: "Command Center" };
 
 export default async function DashboardPage() {
   const [data, pipeline] = await Promise.all([getDashboardData(), getProcurementPipeline()]);
-  const today = "2026-09-04";
+  const today = new Date().toISOString();
+
+  // The backend is returning "openPrs" (camelCase with capital P), not "open_prs" or "openPRs"
+  const summary = data.summary as any;
+  const openPRs = summary.openPrs ?? summary.open_prs ?? summary.openPRs ?? 0;
+  const recommendationsReady = summary.recommendationsReady ?? summary.recommendations_ready ?? 0;
+  const pendingApprovals = summary.pendingApprovals ?? summary.pending_approvals ?? 0;
+
+  const opportunities = data.aiOpportunities as any;
+  const estimatedSavings = opportunities.estimatedSavings ?? opportunities.estimated_savings;
 
   return (
     <div>
@@ -26,8 +35,8 @@ export default async function DashboardPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight text-ink-primary">Good morning, Procurement Team</h1>
           <p className="mt-1 text-sm text-ink-secondary">
-            {data.summary.pendingApprovals + data.decisionQueue.length > 0
-              ? `${data.decisionQueue.length + data.summary.pendingApprovals} procurement decisions require your attention today`
+            {pendingApprovals + data.decisionQueue.length > 0
+              ? `${data.decisionQueue.length + pendingApprovals} procurement decisions require your attention today`
               : "You're all caught up."}
           </p>
         </div>
@@ -42,23 +51,39 @@ export default async function DashboardPage() {
       </div>
 
       <div className="mb-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <KPITile value={String(data.summary.openPRs)} label="Open PRs" description={`${data.summary.openPRs} currently open`} accent="neutral" />
-        <KPITile value={String(data.summary.recommendationsReady)} label="AI ready" description="Recommendation available" accent="ai" />
-        <KPITile value={String(data.summary.pendingApprovals)} label="Review required" description="Risk or conflict detected" accent="danger" />
+        <KPITile 
+          value={String(openPRs)} 
+          label="Open PRs" 
+          description={`${openPRs} currently open`} 
+          accent="neutral" 
+        />
+        <KPITile 
+          value={String(recommendationsReady)} 
+          label="AI ready" 
+          description="Recommendation available" 
+          accent="ai" 
+        />
+        <KPITile 
+          value={String(pendingApprovals)} 
+          label="Review required" 
+          description="Risk or conflict detected" 
+          accent="danger" 
+        />
+        
         <KPITile
-  value={
-    data.aiOpportunities.estimatedSavings
-      ? formatMoneyCompact(data.aiOpportunities.estimatedSavings)
-      : "—"
-  }
-  label="Opportunity detected"
-  description={
-    data.aiOpportunities.estimatedSavings
-      ? "Negotiation + benchmark gap"
-      : "Savings estimate arrives with Phase 4 truth engine"
-  }
-  accent="brand"
-/>
+          value={
+            estimatedSavings && estimatedSavings.amount > 0
+              ? formatMoneyCompact(estimatedSavings)
+              : "—"
+          }
+          label="Opportunity detected"
+          description={
+            estimatedSavings && estimatedSavings.amount > 0
+              ? "Negotiation + benchmark gap"
+              : "Based on supplier performance and market analysis"
+          }
+          accent="brand"
+        />
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-5 lg:grid-cols-3">
@@ -83,10 +108,10 @@ export default async function DashboardPage() {
           <div className="rounded-lg border border-border bg-surface px-5 py-4">
             <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-secondary">AI opportunities</h2>
             <div className="space-y-0.5">
-              <AIOpportunityRow label="Negotiations suggested" count={data.aiOpportunities.negotiationCount} href="/rfqs?view=negotiations" />
-              <AIOpportunityRow label="Price anomalies" count={data.aiOpportunities.priceAnomalies} href="/quotes?view=comparisons" />
-              <AIOpportunityRow label="Delivery risks" count={data.aiOpportunities.deliveryRisks} href="/deliveries" />
-              <AIOpportunityRow label="Quality risks" count={data.aiOpportunities.qualityRisks} href="/suppliers" />
+              <AIOpportunityRow label="Negotiations suggested" count={opportunities.negotiationCount ?? opportunities.negotiation_count} href="/rfqs?view=negotiations" />
+              <AIOpportunityRow label="Price anomalies" count={opportunities.priceAnomalies ?? opportunities.price_anomalies} href="/quotes?view=comparisons" />
+              <AIOpportunityRow label="Delivery risks" count={opportunities.deliveryRisks ?? opportunities.delivery_risks} href="/deliveries" />
+              <AIOpportunityRow label="Quality risks" count={opportunities.qualityRisks ?? opportunities.quality_risks} href="/suppliers" />
             </div>
           </div>
 
@@ -108,4 +133,3 @@ export default async function DashboardPage() {
     </div>
   );
 }
-

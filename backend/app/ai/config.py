@@ -26,6 +26,7 @@ class Settings:
     langgraph_checkpoint_enabled: bool
     langgraph_checkpoint_setup_required: bool
     sync_database_url: str
+    ai_ux_stream_heartbeat_seconds: float
     ai: AISettings
 
 
@@ -41,6 +42,7 @@ def get_ai_settings() -> Settings:
         langgraph_checkpoint_enabled=app.langgraph_checkpoint_enabled,
         langgraph_checkpoint_setup_required=app.langgraph_checkpoint_setup_required,
         sync_database_url=app.sync_database_url,
+        ai_ux_stream_heartbeat_seconds=app.ai_ux_stream_heartbeat_seconds,
         ai=AISettings(
             model=app.groq_model,
             temperature=app.groq_temperature,

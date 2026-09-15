@@ -9,6 +9,7 @@ from uuid import uuid4
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.ai.agents import QuestionAgent
 from app.ai.config import get_ai_settings
 from app.ai.errors import (
     AIConfigurationError,
@@ -17,7 +18,7 @@ from app.ai.errors import (
 )
 from app.ai.graphs.procurement import build_procurement_graph
 from app.ai.runtime import checkpoint_context
-from app.ai.schemas import ProcurementAIRunOut
+from app.ai.schemas import AIQuestionResponse, ProcurementAIRunOut
 from app.ai.validators import validate_agent_outputs
 from app.core.exceptions import NotFoundError
 from app.models.quote import Quote
@@ -393,7 +394,7 @@ def _facts_payload(
                 "supplier_id": assessment.supplier_id,
                 "supplier_name": assessment.supplier_name,
                 "quote_reference": assessment.quote_reference,
-                "quote_id": selected_quote.id if selected_quote else None,  # <-- CRITICAL FIX: Added quote_id for validator
+                "quote_id": selected_quote.id if selected_quote else None,
                 "price_score": assessment.price_score,
                 "quality_score": assessment.quality_score,
                 "delivery_score": assessment.delivery_score,
@@ -474,8 +475,6 @@ def _facts_payload(
                 )
             ),
             "suppliers": supplier_payloads,
-            # Transitional alias for agent prompts/code
-            # written against the previous Phase 4 DTO.
             "candidates": supplier_payloads,
             "recommendation": (
                 truth.recommendation.model_dump(
@@ -779,7 +778,7 @@ class ProcurementAIService:
 
         self.ensure_configured()
 
-        # FIX: Use select().where() to look up by pr_number, not db.get() which looks up by primary key (id)
+       # Use select().where() to look up by pr_number, not db.get() which looks up by primary key (id)
         requisition_result = await db.execute(
             select(Requisition).where(Requisition.pr_number == pr_number)
         )
@@ -1407,3 +1406,44 @@ class ProcurementAIService:
                     await task
                 except asyncio.CancelledError:
                     pass
+
+    async def ask(
+        self,
+        db: AsyncSession,
+        pr_number: str,
+        question: str,
+        *,
+        thread_id: str | None = None,
+    ) -> AIQuestionResponse:
+        """Answer a grounded question about the procurement using the QuestionAgent."""
+        config, _, _, facts, _, _, effective_thread_id = await self._prepare(
+            db, pr_number, thread_id
+        )
+        
+        # Initialize QuestionAgent with the same Gemini/Groq fallback signature
+        agent = QuestionAgent(
+            config.ai, 
+            config.groq_api_key or "", 
+            config.gemini_api_key or "", 
+            config.gemini_model
+        )
+        
+        try:
+            result = await agent.run(facts, question.strip())
+        except Exception as exc:
+            raise AIExecutionError(f"Question analysis failed for {pr_number}: {exc}") from exc
+            
+        refs = self._evidence_references(facts, result.evidence_ids)
+        
+        return AIQuestionResponse(
+            id=f"aiq-{uuid4().hex}",
+            thread_id=effective_thread_id,
+            pr_number=pr_number,
+            question=question.strip(),
+            answer=result.answer,
+            uncertainty=result.uncertainty,
+            evidence=refs,
+            graph_version=config.ai.graph_version,
+            prompt_version=config.ai.prompt_version,
+            model=config.ai.model,
+        )

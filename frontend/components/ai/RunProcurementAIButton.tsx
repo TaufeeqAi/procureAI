@@ -1,48 +1,29 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { BrainCircuit, Loader2 } from "lucide-react";
+import { BrainCircuit } from "lucide-react";
 import { Button } from "@/components/ui/Button";
-import { runProcurementAI } from "@/lib/api/ai";
+import { useProcurementAI } from "@/lib/hooks/useProcurementAI";
 
 interface Props {
   prNumber: string;
 }
 
+/** Small reusable Phase 6 trigger for secondary surfaces. */
 export function RunProcurementAIButton({ prNumber }: Props) {
-  const router = useRouter();
-  const [running, setRunning] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [activity, setActivity] = useState<Array<{ label: string; status: string }>>([]);
-
-  async function handleRun() {
-    setRunning(true);
-    setError(null);
-    try {
-      const run = await runProcurementAI(prNumber);
-      setActivity(run.activity.map((item) => ({ label: item.label, status: item.status })));
-      router.refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "AI analysis failed");
-    } finally {
-      setRunning(false);
-    }
-  }
+  const ai = useProcurementAI(prNumber);
 
   return (
     <div className="flex flex-col items-end gap-1.5">
-      <Button variant="primary" size="sm" onClick={handleRun} disabled={running}>
-        {running ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <BrainCircuit className="mr-1.5 h-3.5 w-3.5" />}
-        {running ? "Running AI analysis…" : "Run AI analysis"}
+      <Button variant="primary" size="sm" onClick={() => void ai.start()} disabled={ai.phase === "running"}>
+        <BrainCircuit className="mr-1.5 h-3.5 w-3.5" />
+        {ai.phase === "running" ? "Running AI analysis…" : "Run AI analysis"}
       </Button>
-      {error && <p className="max-w-xs text-right text-[11px] text-danger">{error}</p>}
-      {activity.length > 0 && (
-        <div className="max-w-sm text-right text-[10px] text-steel-light">
-          {activity.filter((item) => item.status === "complete").map((item) => item.label).join(" → ")}
-        </div>
+      {ai.phase === "running" && ai.activity.length > 0 && (
+        <p className="max-w-sm text-right text-[10px] text-steel-light">
+          {ai.activity.at(-1)?.label}: {ai.activity.at(-1)?.detail}
+        </p>
       )}
+      {ai.error && <p className="max-w-xs text-right text-[11px] text-danger">{ai.error}</p>}
     </div>
   );
 }
-

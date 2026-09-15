@@ -1,13 +1,11 @@
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/layout/PageHeader";
-import { DecisionWorkspace } from "@/components/procurement/DecisionWorkspace";
+import { AIEndToEndWorkspace } from "@/components/ai/AIEndToEndWorkspace";
 import { EmptyState } from "@/components/shared/states";
-import { RunProcurementAIButton } from "@/components/ai/RunProcurementAIButton";
 import {
   getRequisitionByNumber,
   getRecommendationFor,
   getWhatIfFor,
-  getNegotiationDraftFor,
 } from "@/lib/api/queries";
 import { routes } from "@/lib/constants/routes";
 
@@ -34,9 +32,32 @@ export default async function DecisionPage({
   const requisition = await getRequisitionByNumber(prNumber);
   if (!requisition) notFound();
 
-  const recommendation = await getRecommendationFor(prNumber);
-  const whatIf = await getWhatIfFor(prNumber, { requiredDate: query.whatIfDate });
-  const negotiationDraft = await getNegotiationDraftFor(prNumber);
+  // Fetch deterministic baseline data in parallel
+  const [recommendation, whatIf] = await Promise.all([
+    getRecommendationFor(prNumber),
+    getWhatIfFor(prNumber, { requiredDate: query.whatIfDate }),
+  ]);
+
+  // Require both deterministic recommendation and what-if baseline 
+  // before the real AI workspace can run safely.
+  if (!recommendation || !whatIf) {
+    return (
+      <div>
+        <PageHeader
+          breadcrumbs={[
+            { label: "Requisitions", href: routes.requisitions() }, 
+            { label: prNumber, href: routes.requisition(prNumber) }, 
+            { label: "Decision" }
+          ]}
+          title="Procurement Decision"
+        />
+        <EmptyState
+          title="Decision intelligence unavailable"
+          description="AI recommendation and what-if baseline are both required before the real AI workspace can run safely."
+        />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -47,23 +68,17 @@ export default async function DecisionPage({
           { label: "Decision" }
         ]}
         title="Procurement Decision"
-        actions={<RunProcurementAIButton prNumber={prNumber} />}
       />
-      {!recommendation || !whatIf || !negotiationDraft ? (
-        <EmptyState
-          title="Recommendation not ready"
-          description="There is insufficient comparable supplier history to produce a high-confidence recommendation yet. Continue with manual review."
-        />
-      ) : (
-        <DecisionWorkspace
-          prNumber={prNumber}
-          recommendation={recommendation}
-          whatIf={whatIf}
-          negotiationDraft={negotiationDraft}
-          approvalHref={routes.requisitionApproval(prNumber)}
-          sourcingHref={routes.requisitionSourcing(prNumber)}
-        />
-      )}
-        </div>
+      
+      {/* AIEndToEndWorkspace now manages the "Run AI analysis" button, 
+          live activity streaming, and the negotiation/question drawers internally. */}
+      <AIEndToEndWorkspace
+        prNumber={prNumber}
+        recommendation={recommendation}
+        whatIf={whatIf}
+        approvalHref={routes.requisitionApproval(prNumber)}
+        sourcingHref={routes.requisitionSourcing(prNumber)}
+      />
+    </div>
   );
 }

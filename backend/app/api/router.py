@@ -14,6 +14,7 @@ from app.api import (
     rfqs,
     search,
     suppliers,
+    chat,
 )
 
 api_router = APIRouter()
@@ -31,4 +32,5 @@ api_router.include_router(intelligence.router)
 api_router.include_router(notifications.router)
 api_router.include_router(ai.router)
 api_router.include_router(search.router)
+api_router.include_router(chat.router)
 

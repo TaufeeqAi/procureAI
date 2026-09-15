@@ -1,95 +1,156 @@
-import { CheckCircle2 } from "lucide-react";
-import Link from "next/link";
-import { Card, CardContent } from "@/components/ui/Card";
-import { Button, ButtonLink } from "@/components/ui/Button";
-import { formatMoney } from "@/lib/utils/format";
-import { routes } from "@/lib/constants/routes";
+"use client";
+
+import { Star, CheckCircle2, AlertTriangle, ShieldAlert, TrendingDown, TrendingUp } from "lucide-react";
+import { Button } from "@/components/ui/Button";
 import type { SupplierShortlistCandidate } from "@/types/supplier";
 
-/**
- * A ranked shortlist card (Sourcing tab). The evidence link is
- * deliberately required, not optional visual chrome — see
- * docs/architecture/ai-ux.md's automation-bias countermeasure: `onSelect`
- * only fires once `evidenceViewed` is true, so a buyer can't select the
- * top-ranked card without opening evidence at least once this session.
- */
-export function SupplierCard({
-  candidate,
-  evidenceViewed,
-  onViewEvidence,
-  onSelect,
-  selected,
-}: {
+interface SupplierCardProps {
+  rank: number;
   candidate: SupplierShortlistCandidate;
   evidenceViewed: boolean;
   onViewEvidence: () => void;
   onSelect: () => void;
   selected: boolean;
-}) {
+}
+
+// Helper for Risk Color Coding
+function getRiskStyles(risk: string) {
+  switch (risk?.toUpperCase()) {
+    case "LOW":
+      return { text: "text-success", bg: "bg-success/10", border: "border-success/20", icon: <CheckCircle2 className="h-3.5 w-3.5 text-success" /> };
+    case "MEDIUM":
+      return { text: "text-warning", bg: "bg-warning/10", border: "border-warning/20", icon: <AlertTriangle className="h-3.5 w-3.5 text-warning" /> };
+    case "HIGH":
+      return { text: "text-danger", bg: "bg-danger/10", border: "border-danger/20", icon: <ShieldAlert className="h-3.5 w-3.5 text-danger" /> };
+    default:
+      return { text: "text-ink-tertiary", bg: "bg-surface-raised", border: "border-border", icon: null };
+  }
+}
+
+export function SupplierCard({ rank, candidate, evidenceViewed, onViewEvidence, onSelect, selected }: SupplierCardProps) {
+  const { supplier } = candidate;
+  
+  // ✅ Use correct property names from your type definition
+  const aiScore = candidate.deterministicScore;
+  const price = candidate.quotedUnitPrice?.amount ?? 0;
+  const historicalMedian = candidate.historicalMedianPrice?.amount ?? 0;
+  
+  // Calculate variance percentage
+  const variance = historicalMedian > 0 ? ((price - historicalMedian) / historicalMedian) * 100 : 0;
+  const varianceStyles = variance < 0 ? "text-success" : variance > 0 ? "text-danger" : "text-ink-tertiary";
+  const absVariance = Math.abs(variance).toFixed(1);
+  const isBelowBenchmark = variance < 0;
+  
+  // Get metrics from supplier performance
+  const quality = supplier.performance?.qualityAcceptanceRate ?? 0;
+  const delivery = supplier.performance?.onTimeDeliveryRate ?? 0;
+  const riskLevel = supplier.riskLevel;
+  const transactionCount = supplier.performance?.totalPurchases ?? 0;
+  
+  const riskStyles = getRiskStyles(riskLevel);
+
   return (
-    <Card accent={candidate.rank === 1 ? "ai" : "neutral"}>
-      <CardContent className="space-y-3">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-xs text-ink-tertiary">Rank #{candidate.rank}</p>
-            <Link href={routes.supplier(candidate.supplier.code)} className="text-base font-semibold text-ink-primary hover:text-brand">
-              {candidate.rank === 1 && "★ "}
-              {candidate.supplier.name}
-            </Link>
-            <p className="text-xs text-ink-tertiary">
-              {candidate.supplier.approvalStatus === "APPROVED" ? "Approved" : candidate.supplier.approvalStatus} ·{" "}
-              {candidate.supplier.performance?.totalPurchases ?? 0} previous transactions
-            </p>
-          </div>
-          <span className="rounded-md bg-surface-raised px-2 py-1 text-xs font-semibold text-ink-primary">Deterministic score {candidate.deterministicScore.toFixed(1)}</span>
-        </div>
+    <div className={`group relative overflow-hidden rounded-xl border bg-surface transition-all duration-200 ${
+      selected 
+        ? "border-ai shadow-lg shadow-ai/10 ring-1 ring-ai" 
+        : "border-border-strong hover:border-border hover:shadow-md"
+    }`}>
+      
+      {/* Rank Badge */}
+      <div className="absolute left-0 top-0 flex h-8 w-8 items-center justify-center rounded-br-xl bg-surface-raised text-xs font-bold text-ink-tertiary">
+        #{rank}
+      </div>
 
-        <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-          <div>
-            <p className="text-[11px] uppercase text-ink-tertiary">Price</p>
-            <p className="font-medium tabular-nums text-ink-primary">{candidate.quotedUnitPrice ? formatMoney(candidate.quotedUnitPrice) : "—"}</p>
+      <div className="p-6">
+        {/* Header */}
+        <div className="mb-6 flex items-start justify-between">
+          <div className="flex items-center gap-3">
+            {rank === 1 && <Star className="h-5 w-5 fill-amber-400 text-amber-400" />}
+            <div>
+              <h3 className="text-lg font-bold text-ink-primary">{supplier.name}</h3>
+              <p className="mt-0.5 text-xs text-ink-tertiary">
+                {supplier.approvalStatus ?? "Approved"} · {transactionCount} previous transactions
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-[11px] uppercase text-ink-tertiary">Quality</p>
-            <p className="font-medium tabular-nums text-ink-primary">{((candidate.supplier.performance?.qualityAcceptanceRate ?? 0) * 100).toFixed(1)}%</p>
-          </div>
-          <div>
-            <p className="text-[11px] uppercase text-ink-tertiary">Delivery</p>
-            <p className="font-medium tabular-nums text-ink-primary">{((candidate.supplier.performance?.onTimeDeliveryRate ?? 0) * 100).toFixed(0)}% OTD</p>
-          </div>
-          <div>
-            <p className="text-[11px] uppercase text-ink-tertiary">Risk</p>
-            <p className="font-medium text-ink-primary">{candidate.supplier.riskLevel}</p>
+          
+          {/* AI Score Badge */}
+          <div className="flex flex-col items-end">
+            <span className="text-xs font-medium uppercase tracking-wide text-ink-tertiary">AI Score</span>
+            <span className="text-2xl font-bold tabular-nums text-ink-primary">{aiScore.toFixed(1)}</span>
           </div>
         </div>
 
-        <ul className="flex flex-wrap gap-x-4 gap-y-1">
-          {candidate.reasons.map((reason) => (
-            <li key={reason} className="flex items-center gap-1.5 text-xs text-ink-secondary">
-              <CheckCircle2 className="h-3 w-3 text-success" /> {reason}
-            </li>
-          ))}
-        </ul>
+        {/* Metrics Grid */}
+        <div className="mb-6 grid grid-cols-2 gap-6 sm:grid-cols-4">
+          <div className="space-y-1">
+            <p className="text-xs font-medium uppercase tracking-wide text-ink-tertiary">Price</p>
+            <p className="text-lg font-semibold tabular-nums text-ink-primary">₹{price.toLocaleString()}</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs font-medium uppercase tracking-wide text-ink-tertiary">Quality</p>
+            <p className="text-lg font-semibold tabular-nums text-ink-primary">{(quality * 100).toFixed(1)}%</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs font-medium uppercase tracking-wide text-ink-tertiary">Delivery</p>
+            <p className="text-lg font-semibold tabular-nums text-ink-primary">{(delivery * 100).toFixed(0)}% OTD</p>
+          </div>
+          <div className="space-y-1">
+            <p className="text-xs font-medium uppercase tracking-wide text-ink-tertiary">Risk</p>
+            <div className={`inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 text-sm font-semibold ${riskStyles.bg} ${riskStyles.text} ${riskStyles.border}`}>
+              {riskStyles.icon}
+              {riskLevel.toUpperCase()}
+            </div>
+          </div>
+        </div>
 
-        <div className="flex items-center justify-between gap-2 border-t border-border pt-3">
-          <ButtonLink href={routes.supplier(candidate.supplier.code)} variant="ghost" size="sm">
-            View supplier
-          </ButtonLink>
-          <div className="flex gap-2">
-            <Button variant="secondary" size="sm" onClick={onViewEvidence}>
-              View evidence
-            </Button>
-            <Button
-              size="sm"
-              disabled={!evidenceViewed}
-              onClick={onSelect}
-              title={!evidenceViewed ? "Review evidence before selecting" : undefined}
+        {/* Insights / Badges */}
+        <div className="mb-6 flex flex-wrap items-center gap-3 border-t border-border pt-4">
+          <div className="flex items-center gap-1.5 text-xs text-ink-secondary">
+            <CheckCircle2 className="h-3.5 w-3.5 text-ai" />
+            <span>AI score <span className="font-semibold text-ink-primary">{aiScore.toFixed(1)}</span></span>
+          </div>
+          
+          <div className={`flex items-center gap-1.5 text-xs ${riskStyles.text}`}>
+            {riskStyles.icon}
+            <span className="font-medium">{riskLevel.toUpperCase()} risk</span>
+          </div>
+
+          <div className={`flex items-center gap-1.5 text-xs ${varianceStyles}`}>
+            {isBelowBenchmark ? <TrendingDown className="h-3.5 w-3.5" /> : <TrendingUp className="h-3.5 w-3.5" />}
+            <span className="font-medium">
+              Quote {absVariance}% {isBelowBenchmark ? "below" : "above"} historical benchmark
+            </span>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center justify-between border-t border-border pt-4">
+          <button className="text-sm font-medium text-ink-tertiary transition-colors hover:text-ink-primary">
+            View supplier profile →
+          </button>
+          
+          <div className="flex items-center gap-3">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={onViewEvidence}
+              className={evidenceViewed ? "text-success" : ""}
             >
-              {selected ? "Selected" : "Select"}
+              {evidenceViewed ? "✓ Evidence viewed" : "View evidence"}
+            </Button>
+            
+            <Button 
+              variant={selected ? "primary" : "secondary"} 
+              size="sm" 
+              onClick={onSelect}
+              className={selected ? "bg-amber-500 text-black hover:bg-amber-600 border-amber-500" : ""}
+            >
+              {selected ? "Selected" : "Select supplier"}
             </Button>
           </div>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

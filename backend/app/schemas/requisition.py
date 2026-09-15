@@ -84,6 +84,7 @@ class ProcurementAiOpportunities(CamelModel):
     price_anomalies: int
     delivery_risks: int
     quality_risks: int
+    estimated_savings: Money | None = None
 
 
 class ActivityEvent(CamelModel):

@@ -1,4 +1,12 @@
-import type { AIConfidence, EvidenceItem, RiskLevel, Severity } from "./common";
+import type {
+  AIConfidence,
+  ConfidenceBand,
+  EvidenceItem,
+  EvidenceReference,
+  ISODateTime,
+  RiskLevel,
+  Severity,
+} from "./common";
 import type { SupplierScoreBreakdown } from "./supplier";
 
 /**
@@ -44,6 +52,22 @@ export interface ScoreDimension {
   detail?: string;
 }
 
+export interface RecommendationDimensions {
+  price: ScoreDimension;
+  quality: ScoreDimension;
+  delivery: ScoreDimension;
+  commercialTerms: ScoreDimension;
+  risk: ScoreDimension;
+}
+
+export interface RiskFlag {
+  id?: string;
+  severity: RiskLevel;
+  message: string;
+  relatedEntity?: string;
+  evidence?: EvidenceReference[];
+}
+
 export interface PolicyCheck {
   label: string;
   passed: boolean;
@@ -52,25 +76,31 @@ export interface PolicyCheck {
 
 export type RecommendationState = "READY" | "REVIEW_REQUIRED" | "INSUFFICIENT_DATA";
 
-// --- Phase 5 Updated / New Contracts ---
+export interface RecommendationAlternative {
+  supplierId: string;
+  supplierName: string;
+  overallScore: number;
+  noteworthyDifference: string;
+}
 
 export interface ProcurementRecommendation {
-  prNumber: string;
+  id: string;
+  prId: string;
+  prNumber?: string; // Kept for backward compatibility
   supplierId: string;
-  confidence: AIConfidence;
-  scores: SupplierScoreBreakdown;
+  supplierName: string;
+  confidence: number;
+  confidenceBand: ConfidenceBand;
+  recommendationState: RecommendationState;
+  overallScore: number;
+  dimensions: RecommendationDimensions;
   reasons: string[];
   tradeOff?: string;
   risks: RiskFlag[];
-  evidence: EvidenceItem[];
-  generatedAt: string;
-}
-
-export interface RiskFlag {
-  id: string;
-  severity: RiskLevel;
-  message: string;
-  relatedEntity?: string;
+  evidence: EvidenceReference[];
+  policyChecks: PolicyCheck[];
+  alternatives: RecommendationAlternative[];
+  generatedAt: ISODateTime;
 }
 
 export interface NegotiationTargetRange {
@@ -81,21 +111,46 @@ export interface NegotiationTargetRange {
 }
 
 export interface NegotiationDraft {
-  prNumber: string;
+  id: string;
+  prId: string;
+  prNumber?: string;
   supplierId: string;
-  currentUnitPriceInr: number;
-  benchmarkUnitPriceInr: number;
+  targetRange: NegotiationTargetRange;
+  draftMessage: string;
+  status: "DRAFT" | "SENT_FOR_APPROVAL" | "APPROVED" | "SENT";
+  generatedAt: ISODateTime;
+}
+
+export interface AIGeneratedNegotiationDraft {
+  supplierId: string;
   targetUnitPriceInr: number;
+  anchorReason: string;
   messageBody: string;
+  evidenceIds: string[];
 }
 
 export type WhatIfWeightKey = "price" | "quality" | "delivery" | "commercial" | "risk";
 export interface WhatIfWeights extends Record<WhatIfWeightKey, number> {}
-export interface WhatIfScenarioResult { 
-  supplierId: string; 
-  originalScore: number; 
-  newScore: number; 
-  delta: number; 
+
+export interface WhatIfScenarioResult {
+  supplierId: string;
+  originalScore: number;
+  newScore: number;
+  delta: number;
+}
+
+export interface WhatIfResult {
+  prId: string;
+  scenario: { requiredDate: string; quantity: number; weights: WhatIfWeights };
+  results: Array<{
+    supplierId: string;
+    supplierName: string;
+    baselineScore: number;
+    scenarioScore: number;
+    feasible: boolean;
+    warning?: string;
+  }>;
+  aiInterpretation?: string;
 }
 
 export type AIAgentName =
@@ -105,6 +160,7 @@ export type AIAgentName =
   | "procurement_analyst"
   | "risk_agent"
   | "negotiation_agent"
+  | "question_agent"
   | "human_decision"
   | "graph";
 
@@ -121,15 +177,18 @@ export interface AIActivityEntry {
   timestamp: string;
 }
 
+export type ProcurementAIRunStatus = "completed" | "failed";
+
 export interface ProcurementAIRun {
   runId: string;
   threadId: string;
   prNumber: string;
-  status: "completed" | "failed";
+  status: ProcurementAIRunStatus;
   graphVersion: string;
   promptVersion: string;
   model: string;
   recommendation: ProcurementRecommendation;
+  negotiation?: AIGeneratedNegotiationDraft | null;
   activity: Array<{
     agent: AIAgentName;
     label: string;
@@ -138,6 +197,39 @@ export interface ProcurementAIRun {
     timestamp: string;
   }>;
   errors: Array<Record<string, unknown>>;
+}
+
+// --- Phase 6 SSE & Q&A Contracts ---
+
+export type AIStreamEventType = "run.started" | "activity" | "run.completed" | "run.failed" | "heartbeat";
+
+export interface AIStreamEnvelope {
+  type: AIStreamEventType;
+  runId: string;
+  prNumber: string;
+  threadId: string;
+  sequence: number;
+  timestamp: string;
+  data: Record<string, unknown>;
+}
+
+export interface AIQuestionExchange {
+  id: string;
+  threadId: string;
+  prNumber: string;
+  question: string;
+  answer: string;
+  uncertainty?: string;
+  evidence: EvidenceReference[];
+  graphVersion: string;
+  promptVersion: string;
+  model: string;
+  answeredAt: string;
+}
+
+export interface AIQuestionRequest {
+  question: string;
+  threadId?: string;
 }
 
 // --- Preserved Phase 3/4 Contracts ---
